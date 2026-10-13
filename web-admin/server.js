@@ -1,12 +1,12 @@
 // Zero-dependency static file server for the TapSlip Owner Web Admin.
 // Usage: node server.js [port]   (default port 4173)
 
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
-import { fileURLToPath } from 'node:url';
+const http = require('node:http');
+const { readFile } = require('node:fs/promises');
+const { extname, join, normalize } = require('node:path');
 
-const ROOT = join(fileURLToPath(new URL('.', import.meta.url)));
+// `server.js` lives inside `web-admin/`, so `__dirname` is the admin root.
+const ROOT = normalize(join(__dirname));
 const PORT = Number(process.env.PORT) || 4173;
 
 const MIME = {
@@ -16,10 +16,12 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.ico': 'image/x-icon',
 };
 
-const server = createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     // Serve index.html for the root path.

@@ -1,0 +1,9 @@
+{
+  "routes": [
+    { "handle": "filesystem", "src": "/app.js", "dest": "/web-admin/app.js" },
+    { "handle": "filesystem", "src": "/styles.css", "dest": "/web-admin/styles.css" },
+    { "handle": "filesystem", "src": "/assets/food/(.*)", "dest": "/web-admin/assets/food/$1" },
+    { "handle": "filesystem", "src": "/(favicon\\.ico|apple-touch-icon\\.png|apple-touch-icon-precomposed\\.png)$", "dest": "/web-admin/favicon.ico" },
+    { "src": "/(.*)", "dest": "/web-admin/index.html" }
+  ]
+}
