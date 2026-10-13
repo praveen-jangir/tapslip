@@ -1,8 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "outputDirectory": "web-admin",
-  "buildCommand": null,
-  "installCommand": "echo 'No install step needed for static web-admin'",
   "rewrites": [
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
