@@ -1,9 +1,7 @@
 {
-  "routes": [
-    { "src": "/app.js", "dest": "/web-admin/app.js" },
-    { "src": "/styles.css", "dest": "/web-admin/styles.css" },
-    { "src": "/assets/food/(.*)", "dest": "/web-admin/assets/food/$1" },
-    { "src": "/(.*)", "dest": "/web-admin/index.html" }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
-
