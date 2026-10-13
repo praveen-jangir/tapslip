@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -100,8 +100,24 @@ export function OrderDetailsScreen() {
             <Text style={styles.billLabel}>Items total</Text>
             <Text style={styles.billValue}>{rupees(order.subtotal)}</Text>
           </View>
+          {order.discount > 0 && (
+            <View style={styles.billRow}>
+              <Text style={[styles.billLabel, { color: Colors.success }]}>
+                Offer{order.offerTitle ? ` · ${order.offerTitle}` : ''}
+              </Text>
+              <Text style={[styles.billValue, { color: Colors.success }]}>
+                −{rupees(order.discount)}
+              </Text>
+            </View>
+          )}
+          {order.charges > 0 && (
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>Extra charges</Text>
+              <Text style={styles.billValue}>{rupees(order.charges)}</Text>
+            </View>
+          )}
           <View style={styles.billRow}>
-            <Text style={styles.billLabel}>GST (5%)</Text>
+            <Text style={styles.billLabel}>GST</Text>
             <Text style={styles.billValue}>{rupees(order.tax)}</Text>
           </View>
           <View style={styles.billRow}>

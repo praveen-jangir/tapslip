@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Colors } from './theme/colors';
 import { RootStackNavigator } from './navigation/RootStackNavigator';
 import { ToastProvider } from './context/ToastContext';
+import { AdminProvider } from './context/AdminContext';
 import { OrderProvider } from './context/OrderContext';
 
 const navTheme = {
@@ -26,12 +27,14 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ToastProvider>
-          <OrderProvider>
-            <NavigationContainer theme={navTheme}>
-              <StatusBar style="dark" />
-              <RootStackNavigator />
-            </NavigationContainer>
-          </OrderProvider>
+          <AdminProvider>
+            <OrderProvider>
+              <NavigationContainer theme={navTheme}>
+                <StatusBar style="dark" />
+                <RootStackNavigator />
+              </NavigationContainer>
+            </OrderProvider>
+          </AdminProvider>
         </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

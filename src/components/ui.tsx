@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Animated,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -406,6 +407,79 @@ export function VegMark({ veg }: { veg: boolean }) {
   );
 }
 
+export type DietFilter = 'all' | 'veg' | 'nonveg';
+
+const DIET_SEGMENTS = [
+  { key: 'veg', color: Colors.success, label: 'Veg only' },
+  { key: 'all', color: Colors.textMuted, label: 'Show all' },
+  { key: 'nonveg', color: Colors.danger, label: 'Non-veg only' },
+] as const;
+
+const DIET_TRACK_W = 68;
+const DIET_PAD = 4;
+const DIET_THUMB = 22;
+const DIET_STEP = (DIET_TRACK_W - DIET_PAD * 2 - DIET_THUMB) / 2;
+
+/**
+ * Label-free sliding radio for dietary preference:
+ * green dot = veg, neutral dot = all, red dot = non-veg.
+ */
+export function DietFilterSlider({
+  value,
+  onChange,
+}: {
+  value: DietFilter;
+  onChange: (value: DietFilter) => void;
+}) {
+  const index = DIET_SEGMENTS.findIndex((segment) => segment.key === value);
+  const anim = React.useRef(new Animated.Value(index)).current;
+
+  const select = (next: number) => {
+    if (next === index) return;
+    Animated.spring(anim, {
+      toValue: next,
+      friction: 9,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+    onChange(DIET_SEGMENTS[next].key);
+  };
+
+  return (
+    <View style={styles.dietTrack}>
+      {DIET_SEGMENTS.map((segment, i) => (
+        <Pressable
+          key={segment.key}
+          style={styles.dietSegment}
+          onPress={() => select(i)}
+          accessibilityRole="button"
+          accessibilityLabel={segment.label}
+          accessibilityState={{ selected: segment.key === value }}
+          hitSlop={6}
+        >
+          <View style={[styles.dietDot, { backgroundColor: segment.color }]} />
+        </Pressable>
+      ))}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.dietThumb,
+          {
+            transform: [
+              {
+                translateX: anim.interpolate({
+                  inputRange: [0, 2],
+                  outputRange: [0, DIET_STEP * 2],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
@@ -686,5 +760,36 @@ const styles = StyleSheet.create({
     width: 6.5,
     height: 6.5,
     borderRadius: 2,
+  },
+  dietTrack: {
+    width: DIET_TRACK_W,
+    height: 30,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    paddingHorizontal: DIET_PAD,
+    paddingVertical: DIET_PAD,
+  },
+  dietSegment: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dietDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dietThumb: {
+    position: 'absolute',
+    left: DIET_PAD,
+    top: DIET_PAD,
+    width: DIET_THUMB,
+    height: DIET_THUMB,
+    borderRadius: DIET_THUMB / 2,
+    backgroundColor: Colors.white,
+    ...Shadow.card,
   },
 });

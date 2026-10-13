@@ -28,6 +28,10 @@ export interface Dish {
   longDescription: string;
   category: CategoryName;
   image: ImageSourcePropType;
+  /** Custom uploaded photo (base64 data URL). Bundled presets use `imageKey` only. */
+  imageData?: string | null;
+}
+  image: ImageSourcePropType;
   veg: boolean;
   spiceOption: boolean;
   popular?: boolean;
@@ -235,4 +239,29 @@ export const POPULAR_DISHES: Dish[] = DISHES.filter((dish) => dish.popular);
 export const RECOMMENDED_DISHES: Dish[] = [
   DISHES.find((d) => d.id === 'chicken-biryani')!,
   DISHES.find((d) => d.id === 'mojito')!,
+];
+
+export const RESTAURANT_ADDRESS = '12 Residency Road, Bengaluru 560025';
+
+export const RESTAURANT_GSTIN = '29AABCT3345K1Z6';
+
+/**
+ * Preset photos the owner can pick from when adding a dish in the admin panel.
+ * (New dishes can't `require()` new assets at runtime, so we reuse bundled images.)
+ */
+export const DISH_IMAGE_PRESETS: { key: string; source: ImageSourcePropType; label: string }[] = [
+  { key: 'paneer-tikka', source: require('../../assets/food/paneer-tikka.jpg'), label: 'Paneer Tikka' },
+  { key: 'spring-rolls', source: require('../../assets/food/spring-rolls.jpg'), label: 'Spring Rolls' },
+  { key: 'chicken-wings', source: require('../../assets/food/chicken-wings.jpg'), label: 'Chicken Wings' },
+  { key: 'french-fries', source: require('../../assets/food/french-fries.jpg'), label: 'French Fries' },
+  { key: 'garlic-bread', source: require('../../assets/food/garlic-bread.jpg'), label: 'Garlic Bread' },
+  { key: 'butter-chicken', source: require('../../assets/food/butter-chicken.jpg'), label: 'Butter Chicken' },
+  { key: 'dal-makhani', source: require('../../assets/food/dal-makhani.jpg'), label: 'Dal Makhani' },
+  { key: 'masala-dosa', source: require('../../assets/food/masala-dosa.jpg'), label: 'Masala Dosa' },
+  { key: 'chicken-biryani', source: require('../../assets/food/chicken-biryani.jpg'), label: 'Biryani' },
+  { key: 'butter-naan', source: require('../../assets/food/butter-naan.jpg'), label: 'Butter Naan' },
+  { key: 'tandoori-roti', source: require('../../assets/food/tandoori-roti.jpg'), label: 'Tandoori Roti' },
+  { key: 'gulab-jamun', source: require('../../assets/food/gulab-jamun.jpg'), label: 'Gulab Jamun' },
+  { key: 'mojito', source: require('../../assets/food/mojito.jpg'), label: 'Mojito' },
+  { key: 'soft-drink', source: require('../../assets/food/soft-drink.jpg'), label: 'Soft Drink' },
 ];

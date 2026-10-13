@@ -5,8 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/types';
-import { getDish } from '../data/menu';
 import { isFinalStatus, useOrder } from '../context/OrderContext';
+import { useAdmin } from '../context/AdminContext';
 import { useToast } from '../context/ToastContext';
 import { EmptyState, InfoBanner, PrimaryButton, RadioRow, SectionHeader, TextButton, VegMark } from '../components/ui';
 import { QuantityStepper } from '../components/food';
@@ -23,12 +23,16 @@ export function CartScreen() {
     changeQty,
     removeFromCart,
     cartSubtotal,
+    cartDiscount,
+    cartCharges,
+    cartOfferTitle,
     cartTax,
     cartTotal,
     orderType,
     placeOrder,
     orders,
   } = useOrder();
+  const { getMenuItem, settings } = useAdmin();
   const { show } = useToast();
   const [fulfilment, setFulfilment] = useState<'delivery' | 'pickup'>('delivery');
 
@@ -43,6 +47,10 @@ export function CartScreen() {
   };
 
   const handlePlaceOrder = () => {
+    if (!settings.isOpen) {
+      show('Sorry, we are closed right now. Please try again later.', 'error');
+      return;
+    }
     const order = placeOrder();
     if (!order) return;
     navigation.navigate('OrderPlaced', { orderNumber: order.id });
@@ -92,7 +100,7 @@ export function CartScreen() {
             <Image source={item.image} style={styles.itemImg} />
             <View style={{ flex: 1 }}>
               <View style={styles.itemTop}>
-                <VegMark veg={getDish(item.dishId)?.veg ?? true} />
+                <VegMark veg={getMenuItem(item.dishId)?.veg ?? true} />
                 <Text style={styles.itemName} numberOfLines={1}>
                   {item.name}
                 </Text>
@@ -145,8 +153,24 @@ export function CartScreen() {
               <Text style={styles.billLabel}>Items total</Text>
               <Text style={styles.billValue}>{rupees(cartSubtotal)}</Text>
             </View>
+            {cartDiscount > 0 && (
+              <View style={styles.billRow}>
+                <Text style={[styles.billLabel, { color: Colors.success }]}>
+                  Offer{cartOfferTitle ? ` · ${cartOfferTitle}` : ''}
+                </Text>
+                <Text style={[styles.billValue, { color: Colors.success }]}>
+                  −{rupees(cartDiscount)}
+                </Text>
+              </View>
+            )}
+            {cartCharges > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Extra charges</Text>
+                <Text style={styles.billValue}>{rupees(cartCharges)}</Text>
+              </View>
+            )}
             <View style={styles.billRow}>
-              <Text style={styles.billLabel}>GST (5%)</Text>
+              <Text style={styles.billLabel}>GST ({settings.gstPercent}%)</Text>
               <Text style={styles.billValue}>{rupees(cartTax)}</Text>
             </View>
             <View style={styles.hr} />

@@ -9,6 +9,7 @@ import { RESTAURANT_NAME } from '../data/menu';
 import { useOrder } from '../context/OrderContext';
 import { useToast } from '../context/ToastContext';
 import { Logo, SectionHeader, StatusBadge } from '../components/ui';
+import { SocialRowList } from '../components/social';
 import { Colors } from '../theme/colors';
 import { Radius, Shadow } from '../theme/tokens';
 
@@ -118,6 +119,11 @@ export function MoreScreen() {
             hint: 'Reset',
             onPress: restartSession,
           })}
+        </View>
+
+        <View style={styles.block}>
+          <SectionHeader title="Follow & Review Us" />
+          <SocialRowList />
         </View>
       </ScrollView>
     </SafeAreaView>

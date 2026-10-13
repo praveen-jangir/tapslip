@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Expo / Metro bundler
+.expo/
+.web-build/
+.build/
+
+# Build outputs
+.android/
+.ios/
+.dex/
+
+# OS / editor
+.DS_Store
+*.log
+npm-debug.log*
+.yarn-integrity
+
+# Backup / temp files
+*.bak
+*~
+.DS_Store
+
+# Local environment
+.env
+.env.local
+.env.*.local
+
+# Node source maps / caches
+node_modules/

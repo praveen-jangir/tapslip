@@ -11,10 +11,22 @@ import type { ImageSourcePropType } from 'react-native';
 import type { Dish } from '../data/menu';
 import { getDish } from '../data/menu';
 import { useToast } from './ToastContext';
+import { useBillingConfig } from './AdminContext';
+import { adminRepo } from '../services/adminRepo';
+import { computeBill, type Bill, type BillConfig } from '../utils/billing';
 
 export type OrderType = 'dine-in' | 'take-away';
 
-export type OrderStatus = 'placed' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'picked-up';
+export type OrderStatus =
+  | 'placed'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'served'
+  | 'picked-up'
+  /* Set by the owner web admin. */
+  | 'cancelled'
+  | 'completed';
 
 export interface CartItem {
   key: string;
@@ -33,6 +45,12 @@ export interface Order {
   table: number | null;
   items: CartItem[];
   subtotal: number;
+  /** Rupees removed by an offer (0 if none). */
+  discount: number;
+  /** Title of the applied offer, if any. */
+  offerTitle?: string | null;
+  /** Sum of extra charges (packing/service) applied. */
+  charges: number;
   tax: number;
   total: number;
   status: OrderStatus;
@@ -61,11 +79,20 @@ export function statusLabel(status: OrderStatus, type: OrderType): string {
       return 'Served';
     case 'picked-up':
       return 'Picked Up';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'completed':
+      return 'Completed';
   }
 }
 
 export function isFinalStatus(order: Order): boolean {
-  return order.status === 'served' || order.status === 'picked-up';
+  return (
+    order.status === 'served' ||
+    order.status === 'picked-up' ||
+    order.status === 'cancelled' ||
+    order.status === 'completed'
+  );
 }
 
 export function isCompletedOrder(order: Order): boolean {
@@ -79,12 +106,14 @@ const NEXT_DELAY_MS: Record<OrderStatus, number> = {
   ready: 12000,
   served: 0,
   'picked-up': 0,
+  cancelled: 0,
+  completed: 0,
 };
 
 function transitionToast(
   order: Order,
   status: OrderStatus
-): { message: string; tone: 'success' | 'info' } | null {
+): { message: string; tone: 'success' | 'info' | 'error' } | null {
   switch (status) {
     case 'confirmed':
       return { message: `Order #${order.id} confirmed by the restaurant`, tone: 'success' };
@@ -96,6 +125,8 @@ function transitionToast(
         : { message: 'Your order is ready for pickup — show your code at the counter', tone: 'success' };
     case 'served':
       return { message: 'Your order has been served. Enjoy your meal!', tone: 'success' };
+    case 'cancelled':
+      return { message: `Order #${order.id} was cancelled by the restaurant`, tone: 'error' };
     default:
       return null;
   }
@@ -120,10 +151,11 @@ function cartItemOf(dish: Dish, qty: number, spice?: string, instructions?: stri
   };
 }
 
-function total(items: CartItem[]): { subtotal: number; tax: number; total: number } {
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const tax = Math.round(subtotal * 0.05);
-  return { subtotal, tax, total: subtotal + tax };
+/** Default config used only for the pre-seeded past orders. */
+const SEED_BILL_CONFIG: BillConfig = { gstPercent: 5, offers: [], extraCharges: [] };
+
+function total(items: CartItem[], config: BillConfig = SEED_BILL_CONFIG): Bill {
+  return computeBill(items, config);
 }
 
 function timeAt(dayOffset: number, hour: number, minute: number): number {
@@ -196,6 +228,9 @@ interface OrderContextValue {
   cart: CartItem[];
   cartCount: number;
   cartSubtotal: number;
+  cartDiscount: number;
+  cartCharges: number;
+  cartOfferTitle: string | null;
   cartTax: number;
   cartTotal: number;
   addToCart: (dish: Dish, qty?: number, spice?: string, instructions?: string) => void;
@@ -224,6 +259,7 @@ export function useOrder(): OrderContextValue {
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const { show } = useToast();
+  const billing = useBillingConfig();
   const [table, setTable] = useState<number | null>(null);
   const [orderType, setOrderType] = useState<OrderType>('dine-in');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -231,6 +267,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [pastOrders] = useState<Order[]>(makeSeedOrders);
   const [ratedIds, setRatedIds] = useState<string[]>([]);
   const prevOrdersRef = useRef<Order[]>(orders);
+  /* Ids of orders that live in Firestore — the owner web admin controls
+     their status, so the demo auto-advance timers must not fight it. */
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set());
 
   const startSession = useCallback((tableNumber: number) => {
     setTable(tableNumber);
@@ -269,17 +308,23 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const clearCart = useCallback(() => setCart([]), []);
 
   const cartCount = useMemo(() => cart.reduce((sum, item) => sum + item.qty, 0), [cart]);
-  const cartTotals = useMemo(() => total(cart), [cart]);
+  const cartTotals = useMemo(() => computeBill(cart, billing), [cart, billing]);
 
   const placeOrder = useCallback((): Order | null => {
     if (cart.length === 0) return null;
     const now = Date.now();
+    const bill = computeBill(cart, billing);
     const order: Order = {
       id: `TS${1234 + orders.length}`,
       type: orderType,
       table: orderType === 'dine-in' ? table : null,
       items: cart.map((item) => ({ ...item })),
-      ...total(cart),
+      subtotal: bill.subtotal,
+      discount: bill.discount,
+      offerTitle: bill.offerTitle,
+      charges: bill.charges,
+      tax: bill.tax,
+      total: bill.total,
       status: 'placed',
       statusTimes: { placed: now },
       placedAt: now,
@@ -288,8 +333,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
     setOrders((prev) => [...prev, order]);
     setCart([]);
+    adminRepo.addOrder(order).catch(() => {
+      // Offline or Firestore write failure: order stays valid locally.
+    });
     return order;
-  }, [cart, orders.length, orderType, table]);
+  }, [cart, orders.length, orderType, table, billing]);
 
   const markPickedUp = useCallback(
     (orderId: string) => {
@@ -304,6 +352,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             : order
         )
       );
+      // Let the owner panel know the customer collected the order.
+      adminRepo.updateOrderStatus(orderId, 'picked-up').catch(() => {
+        /* offline — local state already updated */
+      });
       show('Order collected. Enjoy your meal!', 'success');
     },
     [show]
@@ -313,16 +365,40 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     setRatedIds((prev) => (prev.includes(orderId) ? prev : [...prev, orderId]));
   }, []);
 
+  /* Live order status from the owner web admin: when the restaurant changes
+     status (via the web admin), it lands here and wins over local state. */
+  useEffect(() => {
+    return adminRepo.subscribeOrders((remote) => {
+      setSyncedIds(new Set(remote.map((o) => o.id).filter(Boolean) as string[]));
+      setOrders((prev) => {
+        let changed = false;
+        const next = prev.map((order) => {
+          const doc = remote.find((o) => o.id === order.id);
+          if (!doc || !doc.status || doc.status === order.status) return order;
+          changed = true;
+          return {
+            ...order,
+            status: doc.status,
+            statusTimes: { ...order.statusTimes, ...(doc.statusTimes || {}) },
+          };
+        });
+        return changed ? next : prev;
+      });
+    });
+  }, []);
+
   const getOrder = useCallback(
     (orderNumber: string) => [...orders, ...pastOrders].find((order) => order.id === orderNumber),
     [orders, pastOrders]
   );
 
-  // Auto-progress order status: placed → confirmed → preparing → ready (→ served for dine-in).
-  // Take-away stays at 'ready' until the customer taps "I've Picked Up".
+  // Demo fallback: auto-progress status for orders that never reached
+  // Firestore (offline demo mode). Once an order is synced, the owner web
+  // admin drives its status — timers must not fight the restaurant.
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     orders.forEach((order) => {
+      if (syncedIds.has(order.id)) return;
       const steps = ORDER_STEPS[order.type];
       const idx = steps.indexOf(order.status);
       if (idx < 0 || idx >= steps.length - 1) return;
@@ -372,6 +448,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       cart,
       cartCount,
       cartSubtotal: cartTotals.subtotal,
+      cartDiscount: cartTotals.discount,
+      cartCharges: cartTotals.charges,
+      cartOfferTitle: cartTotals.offerTitle,
       cartTax: cartTotals.tax,
       cartTotal: cartTotals.total,
       addToCart,

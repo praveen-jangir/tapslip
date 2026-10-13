@@ -5,8 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/types';
-import { getDish, RESTAURANT_NAME } from '../data/menu';
+import { RESTAURANT_NAME } from '../data/menu';
 import { useOrder } from '../context/OrderContext';
+import { useAdmin } from '../context/AdminContext';
 import { useToast } from '../context/ToastContext';
 import { AppHeader, EmptyState, PrimaryButton, RadioRow, VegMark } from '../components/ui';
 import { QuantityStepper } from '../components/food';
@@ -22,8 +23,9 @@ export function FoodDetailScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<RouteProp<RootStackParamList, 'FoodDetail'>>();
   const { addToCart } = useOrder();
+  const { getMenuItem } = useAdmin();
   const { show } = useToast();
-  const dish = getDish(route.params.dishId);
+  const dish = getMenuItem(route.params.dishId);
   const [qty, setQty] = useState(1);
   const [spice, setSpice] = useState('Medium');
   const [notes, setNotes] = useState('');
@@ -34,8 +36,8 @@ export function FoodDetailScreen() {
         <AppHeader title="Dish" onBack={() => navigation.goBack()} />
         <EmptyState
           icon="alert-circle-outline"
-          title="Failed to load dish"
-          subtitle="This dish could not be found. It may have been removed from the menu."
+          title="Dish unavailable"
+          subtitle="This dish could not be found or is currently not on the menu."
           actionLabel="Back to Menu"
           onAction={() => navigation.goBack()}
         />
@@ -44,6 +46,10 @@ export function FoodDetailScreen() {
   }
 
   const handleAdd = () => {
+    if (!dish.available) {
+      show(`${dish.name} is currently unavailable`, 'error');
+      return;
+    }
     addToCart(dish, qty, dish.spiceOption ? spice : undefined, notes.trim() || undefined);
     show(`${dish.name} × ${qty} added to your order`);
     navigation.goBack();
@@ -132,8 +138,13 @@ export function FoodDetailScreen() {
       <View style={styles.footer}>
         <QuantityStepper value={qty} onChange={(delta) => setQty(Math.max(1, qty + delta))} />
         <PrimaryButton
-          label={`Add to Order · ${rupees(dish.price * qty)}`}
+          label={
+            !dish.available
+              ? 'Currently Unavailable'
+              : `Add to Order · ${rupees(dish.price * qty)}`
+          }
           onPress={handleAdd}
+          disabled={!dish.available}
           style={{ flex: 1 }}
         />
       </View>

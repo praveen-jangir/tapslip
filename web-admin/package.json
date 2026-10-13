@@ -1,0 +1,13 @@
+{
+  "name": "tapslip-web-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TapSlip Owner Web Admin — a standalone static page for a restaurant owner.",
+  "type": "module",
+  "scripts": {
+    "serve": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

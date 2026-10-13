@@ -7,17 +7,15 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/types';
 import {
   CATEGORIES,
-  DISHES,
-  getDish,
-  POPULAR_DISHES,
-  RECOMMENDED_DISHES,
   RESTAURANT_NAME,
-  searchDishes,
   type CategoryFilter,
+  type Dish,
 } from '../data/menu';
 import { useOrder } from '../context/OrderContext';
+import { useAdmin } from '../context/AdminContext';
 import { useToast } from '../context/ToastContext';
-import { Chip, EmptyState, InfoBanner, Logo, SectionHeader, TableChip } from '../components/ui';
+import { Chip, DietFilterSlider, EmptyState, InfoBanner, Logo, SectionHeader, TableChip, type DietFilter } from '../components/ui';
+import { FollowUsCard } from '../components/social';
 import { FoodRow, GridFoodCard, PopularFoodCard } from '../components/food';
 import { Colors } from '../theme/colors';
 import { Radius, Shadow } from '../theme/tokens';
@@ -28,14 +26,48 @@ type Nav = StackNavigationProp<RootStackParamList>;
 export function MenuHomeScreen() {
   const navigation = useNavigation<Nav>();
   const { table, cart, cartCount, cartTotal, addToCart, changeQty } = useOrder();
+  const { visibleMenu, getMenuItem, settings } = useAdmin();
   const { show } = useToast();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryFilter>('All');
+  const [diet, setDiet] = useState<DietFilter>('all');
 
-  const searchResults = useMemo(() => searchDishes(query), [query]);
+  const matchesDiet = (dish: Dish) =>
+    diet === 'all' || (diet === 'veg' ? dish.veg : !dish.veg);
+
+  const searchResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return visibleMenu.filter(
+      (d) =>
+        (d.name.toLowerCase().includes(q) ||
+          d.description.toLowerCase().includes(q) ||
+          d.category.toLowerCase().includes(q)) &&
+        matchesDiet(d)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, diet, visibleMenu]);
+
   const categoryDishes = useMemo(
-    () => (category === 'All' ? DISHES : DISHES.filter((d) => d.category === category)),
-    [category]
+    () =>
+      visibleMenu.filter(
+        (d) => (category === 'All' || d.category === category) && matchesDiet(d)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [category, diet, visibleMenu]
+  );
+  const popularDishes = useMemo(
+    () => visibleMenu.filter((d) => d.popular && matchesDiet(d)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [diet, visibleMenu]
+  );
+  const recommendedDishes = useMemo(
+    () =>
+      visibleMenu.filter(
+        (d) => (d.id === 'chicken-biryani' || d.id === 'mojito') && matchesDiet(d)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [diet, visibleMenu]
   );
   const searching = query.trim().length > 0;
 
@@ -43,8 +75,8 @@ export function MenuHomeScreen() {
     cart.filter((item) => item.dishId === dishId).reduce((sum, item) => sum + item.qty, 0);
 
   const handleAdd = (dishId: string) => {
-    const dish = getDish(dishId);
-    if (!dish) return;
+    const dish = getMenuItem(dishId);
+    if (!dish || !dish.available) return;
     const spice = dish.spiceOption ? 'Medium' : undefined;
     const existing = cart.find(
       (item) => item.dishId === dishId && (item.spice ?? '') === (spice ?? '')
@@ -73,6 +105,7 @@ export function MenuHomeScreen() {
         <View style={styles.headerRow}>
           <Logo size={32} />
           <View style={styles.headerActions}>
+            <DietFilterSlider value={diet} onChange={setDiet} />
             <TableChip table={table} />
             <Pressable style={styles.cartBtn} onPress={goCart}>
               <Ionicons name="bag-handle-outline" size={19} color={Colors.primary} />
@@ -89,6 +122,16 @@ export function MenuHomeScreen() {
           <Text style={styles.greetTitle}>Good to see you 👋</Text>
           <Text style={styles.greetSub}>Explore {RESTAURANT_NAME}'s menu</Text>
         </View>
+
+        {!settings.isOpen && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+            <InfoBanner
+              icon="time-outline"
+              tone="warning"
+              text="We're closed right now. You can browse but can't place new orders."
+            />
+          </View>
+        )}
 
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={Colors.textMuted} />
@@ -155,7 +198,7 @@ export function MenuHomeScreen() {
               />
             </View>
 
-            {POPULAR_DISHES.length > 0 && category === 'All' && (
+            {popularDishes.length > 0 && category === 'All' && (
               <View style={styles.section}>
                 <SectionHeader title="Popular Now" />
                 <ScrollView
@@ -163,7 +206,7 @@ export function MenuHomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.popularRow}
                 >
-                  {POPULAR_DISHES.map((dish) => (
+                  {popularDishes.map((dish) => (
                     <PopularFoodCard
                       key={dish.id}
                       dish={dish}
@@ -178,10 +221,10 @@ export function MenuHomeScreen() {
               </View>
             )}
 
-            {category === 'All' && (
+            {recommendedDishes.length > 0 && category === 'All' && (
               <View style={styles.section}>
                 <SectionHeader title="Recommended for You" />
-                {RECOMMENDED_DISHES.map((dish) => (
+                {recommendedDishes.map((dish) => (
                   <FoodRow
                     key={`rec-${dish.id}`}
                     dish={dish}
@@ -204,22 +247,34 @@ export function MenuHomeScreen() {
                     : undefined
                 }
               />
-              <View style={styles.grid}>
-                {categoryDishes.map((dish) => (
-                  <GridFoodCard
-                    key={dish.id}
-                    dish={dish}
-                    style={{ width: '48%' }}
-                    qty={qtyOf(dish.id)}
-                    onQtyChange={(delta) => handleQty(dish.id, delta)}
-                    onOpen={() => openDish(dish.id)}
-                    onAdd={() => handleAdd(dish.id)}
-                  />
-                ))}
-              </View>
+              {categoryDishes.length > 0 ? (
+                <View style={styles.grid}>
+                  {categoryDishes.map((dish) => (
+                    <GridFoodCard
+                      key={dish.id}
+                      dish={dish}
+                      style={{ width: '48%' }}
+                      qty={qtyOf(dish.id)}
+                      onQtyChange={(delta) => handleQty(dish.id, delta)}
+                      onOpen={() => openDish(dish.id)}
+                      onAdd={() => handleAdd(dish.id)}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <EmptyState
+                  icon="leaf-outline"
+                  title="No dishes in this view"
+                  subtitle="Try another category or switch the food filter above."
+                />
+              )}
             </View>
           </>
         )}
+
+        <View style={styles.section}>
+          <FollowUsCard />
+        </View>
       </ScrollView>
 
       {cartCount > 0 && (
