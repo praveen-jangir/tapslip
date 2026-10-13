@@ -43,6 +43,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`TapSlip Owner Admin listening at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`TapSlip Owner Admin listening at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = server;

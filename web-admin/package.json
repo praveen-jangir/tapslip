@@ -4,7 +4,7 @@
   "private": true,
   "description": "TapSlip Owner Web Admin — a standalone static page for a restaurant owner.",
   "scripts": {
-    "serve": "node server.js"
+    "serve": "node dev-server.js"
   },
   "engines": {
     "node": ">=18"
