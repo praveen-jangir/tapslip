@@ -625,12 +625,6 @@ table.data td.num { font-variant-numeric: tabular-nums; }
   .donut-wrap { flex-direction: column; align-items: flex-start; }
 }
 
-
-
-
-
-
-}
 .promo-qr svg { width: 100%; height: 100%; display: block; }
 .promo-body { position: relative; z-index: 1; min-width: 0; }
 .promo-title { color: #fff; font-weight: 800; font-size: 14.5px; line-height: 1.3; }
@@ -642,3 +636,469 @@ table.data td.num { font-variant-numeric: tabular-nums; }
   transition: filter 0.12s;
 }
 .promo-btn:hover { filter: brightness(1.06); }
+
+/* =========================================================================
+   GST & Financial Reports
+   ========================================================================= */
+.finance-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+.period-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.period-pill {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.period-pill:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.period-pill.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.filter-dates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.filter-dates input[type="date"] {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12.5px;
+  background: var(--bg);
+  color: var(--text);
+}
+.finance-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+.doc-badge.green {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.doc-badge.amber {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.subtab-bar {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.subtab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.subtab-btn:hover {
+  color: var(--text);
+}
+.subtab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+.official-header {
+  border-bottom: 2px solid var(--text);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.official-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  margin: 0 0 4px;
+}
+.official-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.tax-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tax-table th {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 12.5px;
+}
+.tax-table td {
+  border: 1px solid var(--border);
+  padding: 9px 12px;
+  font-variant-numeric: tabular-nums;
+}
+.tax-table tr:hover td {
+  background: #fafafb;
+}
+.tax-table .num {
+  text-align: right;
+  font-weight: 600;
+}
+.tax-table .total-row td {
+  background: #f8fafc;
+  font-weight: 800;
+  border-top: 2px solid var(--text);
+}
+.ca-box {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6efff 100%);
+  border: 1.5px solid #bcd4fc;
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.ca-box-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.ca-info h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+.ca-info p {
+  margin: 0;
+  font-size: 13px;
+  color: #3b5998;
+}
+.ca-btns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* =========================================================================
+   Social Media Management
+   ========================================================================= */
+.social-channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.social-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.social-card:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+.social-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.social-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.social-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.social-badge-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.social-badge-icon.ig {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+.social-badge-icon.google {
+  background: #ffffff;
+  border: 1.5px solid #ea4335;
+  color: #ea4335;
+}
+.social-badge-icon.fb {
+  background: #1877f2;
+}
+.social-badge-icon.yt {
+  background: #ff0000;
+}
+.social-badge-icon.wa {
+  background: #25d366;
+}
+.social-badge-icon.x {
+  background: #000000;
+}
+.social-brand-title {
+  font-weight: 800;
+  font-size: 15px;
+}
+.social-brand-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.social-status-pill {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.social-status-pill.connected {
+  background: #dcfce7;
+  color: #15803d;
+}
+.social-status-pill.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.social-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+.social-stat {
+  font-size: 13px;
+}
+.social-stat strong {
+  font-size: 14px;
+  color: var(--text);
+  margin-right: 4px;
+}
+.social-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.social-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--divider);
+}
+.standee-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  margin-bottom: 24px;
+}
+.standee-content h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.standee-content p {
+  margin: 0 0 16px;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 520px;
+}
+.standee-qr-box {
+  background: #fff;
+  padding: 14px;
+  border-radius: 16px;
+  text-align: center;
+  color: #0f172a;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+}
+.standee-qr-box svg {
+  width: 130px;
+  height: 130px;
+  display: block;
+  margin: 0 auto 6px;
+}
+.standee-qr-label {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #0f172a;
+}
+.composer-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.composer-templates {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.composer-template-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.composer-template-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.composer-textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+.composer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.receipt-preview {
+  background: #fffef8;
+  border: 1px dashed #d1d5db;
+  border-radius: var(--radius-sm);
+  padding: 18px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #374151;
+}
+@media (max-width: 900px) {
+  .standee-card { grid-template-columns: 1fr; }
+  .standee-qr-box { margin: 0 auto; }
+}
+
+/* ── Social card layout aliases (used by renderSocials) ── */
+.social-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 4px;
+}
+.social-card-header .social-icon { font-size: 22px; }
+.social-card-header .social-name { font-weight: 800; font-size: 15px; flex: 1; }
+.social-card-body { display: flex; flex-direction: column; gap: 8px; }
+.social-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--divider);
+}
+.social-toggles { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.tr-sub { font-size: 11.5px; color: var(--muted); }
+
+/* ── Finance page ── */
+.finance-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.finance-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.period-pills { display: flex; gap: 6px; }
+.period-pill {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.12s;
+  color: var(--text);
+}
+.period-pill:hover { border-color: var(--accent); }
+.period-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tax-table tfoot td {
+  background: var(--bg);
+  font-weight: 800;
+  border-top: 2px solid var(--border);
+}

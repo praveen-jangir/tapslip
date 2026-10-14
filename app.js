@@ -64,8 +64,32 @@ const COLLECTION_REFS = {
 const defaultState = () => {
   const now = Date.now();
   return {
-    restaurant: { name: 'Spice Symphony', isOpen: true, address: '12 Residency Road, Bengaluru 560025', currency: '₹' },
+    restaurant: {
+      name: 'Spice Symphony',
+      isOpen: true,
+      address: '12 Residency Road, Bengaluru 560025',
+      currency: '₹',
+      gstin: '29AABCT1332L1Z5',
+      pan: 'AABCT1332L',
+      legalName: 'Spice Symphony Hospitality LLP',
+      stateCode: '29 - Karnataka',
+    },
     billing: { gstPercent: 5 },
+    ca: {
+      name: 'CA Rajesh Sharma & Associates',
+      email: 'tax.sharma@gmail.com',
+      phone: '9845012345',
+      gstin: '29AABCT1332L1Z5',
+      notes: 'Monthly GSTR-1 & 3B return audit',
+    },
+    socials: {
+      instagram: { handle: '@spicesymphony.blr', url: 'https://instagram.com/spicesymphony.blr', followers: '4.8K', active: true, showOnSlip: true },
+      google: { place: 'Spice Symphony, Residency Road', url: 'https://maps.google.com/?q=Spice+Symphony+Bengaluru', reviewUrl: 'https://g.page/r/spicesymphony/review', rating: 4.8, reviews: 348, active: true, showOnSlip: true },
+      facebook: { page: 'Spice Symphony Bengaluru', url: 'https://facebook.com/spicesymphony', followers: '3.2K', active: true, showOnSlip: false },
+      youtube: { channel: 'Spice Symphony Kitchen', url: 'https://youtube.com/@spicesymphony', subscribers: '1.2K', active: false, showOnSlip: false },
+      whatsapp: { phone: '+91 98000 11111', url: 'https://wa.me/919800011111', message: 'Hello Spice Symphony! I would like to reserve a table / ask about catering.', active: true, showOnSlip: true },
+      twitter: { handle: '@spicesymphony', url: 'https://twitter.com/spicesymphony', active: false, showOnSlip: false },
+    },
     menu: [
       { id: 'paneer-tikka', name: 'Paneer Tikka', category: 'Starters', price: 280, veg: true, available: true, spiceOption: true, popular: true, imageKey: 'paneer-tikka', description: 'Grilled cottage cheese marinated with spices', longDescription: 'Grilled cottage cheese marinated in yogurt, Indian spices and herbs, served sizzling with mint chutney and onion rings.' },
       { id: 'spring-rolls', name: 'Veg Spring Rolls', category: 'Starters', price: 220, veg: true, available: true, spiceOption: false, popular: true, imageKey: 'spring-rolls', description: 'Crispy rolls filled with fresh vegetables', longDescription: 'Golden crispy rolls stuffed with finely shredded vegetables and noodles, served with a sweet chilli dipping sauce.' },
@@ -270,6 +294,7 @@ const LOCAL_KEY = 'tapslip.admin';
 const PERSIST_KEYS = [
   'restaurant', 'billing', 'menu', 'offers', 'charges',
   'employees', 'orders', 'tables', 'customers', 'inventory',
+  'ca', 'socials',
 ];
 
 /* Re-render whatever page is active (called by Firestore snapshots). */
@@ -349,6 +374,17 @@ const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const uid = (p) => p + Math.random().toString(36).slice(2, 8);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+function downloadBlob(blob, filename = 'download') {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
 function toast(msg) {
   const t = $('#toast');
   t.textContent = msg;
@@ -401,6 +437,8 @@ const PAGES = {
   reports: { title: 'Reports & Analytics', sub: 'Sales, orders and customer insights' },
   employees: { title: 'Staff', sub: 'Manage your team, roles and shifts' },
   settings: { title: 'Settings', sub: 'GST, offers, extra charges & store status' },
+  finance: { title: 'GST & Finance', sub: 'Download reports in official formats, share with your CA' },
+  socials: { title: 'Social Media', sub: 'Manage your online presence across all platforms' },
 };
 
 let currentPage = 'dashboard';
@@ -415,6 +453,8 @@ const RENDERERS = {
   reports: renderReports,
   employees: renderEmployees,
   settings: renderSettings,
+  finance: renderFinance,
+  socials: renderSocials,
 };
 
 function route(page) {
@@ -2083,6 +2123,301 @@ function fakeQrSvg(seed) {
   return `<svg viewBox="0 0 ${N} ${N}" shape-rendering="crispEdges" fill="#111" aria-hidden="true">
     <rect width="${N}" height="${N}" fill="#fff"/>${cells}${finder(0, 0)}${finder(N - 7, 0)}${finder(0, N - 7)}
   </svg>`;
+}
+
+/* ------------------------- GST & Finance ------------------------- */
+function renderFinance() {
+  $('#topbarActions').innerHTML = '';
+  const body = $('#pageBody');
+  const gst = state.billing.gstPercent || 5;
+  const ca = state.ca || {};
+
+  /* Build monthly GST summary from completed orders */
+  function buildMonthlyRows(orders) {
+    const map = {};
+    (orders || []).forEach((o) => {
+      if (!['served','picked-up'].includes(o.status) && !String(o.status).includes('completed')) return;
+      const d = new Date(o.placedAt || Date.now());
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!map[key]) map[key] = { taxable: 0, gst: 0, total: 0, count: 0 };
+      const taxable = Math.round((o.total || 0) / (1 + gst / 100));
+      const gstAmt = (o.total || 0) - taxable;
+      map[key].taxable += taxable;
+      map[key].gst += gstAmt;
+      map[key].total += (o.total || 0);
+      map[key].count += 1;
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([k, v]) => {
+        const [yr, mo] = k.split('-');
+        const label = new Date(+yr, +mo - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+        return { label, ...v };
+      });
+  }
+
+  let period = 'month';
+  let rows = [];
+
+  function filteredOrders() {
+    const now = Date.now();
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (period === 'today') return (state.orders||[]).filter(o => o.placedAt >= today.getTime());
+    if (period === 'month') {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
+      return (state.orders||[]).filter(o => o.placedAt >= start);
+    }
+    return state.orders || [];
+  }
+
+  function drawTable() {
+    rows = buildMonthlyRows(period === 'all' ? state.orders : filteredOrders());
+    const totTaxable = rows.reduce((s,r) => s + r.taxable, 0);
+    const totGst = rows.reduce((s,r) => s + r.gst, 0);
+    const totTotal = rows.reduce((s,r) => s + r.total, 0);
+    const wrap = $('#financeTable');
+    if (!rows.length) {
+      wrap.innerHTML = `<div class="empty"><div class="ico">🧾</div><div class="t">No completed orders in this period</div><div class="s">Change the period filter above to see data.</div></div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <table class="data tax-table">
+        <thead><tr>
+          <th>Period</th><th class="num">Orders</th>
+          <th class="num">Taxable Amount</th>
+          <th class="num">CGST (${gst/2}%)</th>
+          <th class="num">SGST (${gst/2}%)</th>
+          <th class="num">Total GST</th>
+          <th class="num">Gross Total</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr>
+            <td style="font-weight:700">${esc(r.label)}</td>
+            <td class="num">${r.count}</td>
+            <td class="num money">₹${Math.round(r.taxable).toLocaleString('en-IN')}</td>
+            <td class="num money">₹${Math.round(r.gst/2).toLocaleString('en-IN')}</td>
+            <td class="num money">₹${Math.round(r.gst/2).toLocaleString('en-IN')}</td>
+            <td class="num money" style="font-weight:800">₹${Math.round(r.gst).toLocaleString('en-IN')}</td>
+            <td class="num money" style="font-weight:800">₹${Math.round(r.total).toLocaleString('en-IN')}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td style="font-weight:800">Total</td>
+          <td class="num">${rows.reduce((s,r)=>s+r.count,0)}</td>
+          <td class="num money" style="font-weight:800">₹${Math.round(totTaxable).toLocaleString('en-IN')}</td>
+          <td class="num money" style="font-weight:800">₹${Math.round(totGst/2).toLocaleString('en-IN')}</td>
+          <td class="num money" style="font-weight:800">₹${Math.round(totGst/2).toLocaleString('en-IN')}</td>
+          <td class="num money" style="font-weight:800;color:#f26722">₹${Math.round(totGst).toLocaleString('en-IN')}</td>
+          <td class="num money" style="font-weight:800;color:#f26722">₹${Math.round(totTotal).toLocaleString('en-IN')}</td>
+        </tr></tfoot>
+      </table>`;
+  }
+
+  body.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>GST Report</h2><span class="hint">${esc(state.restaurant.name || '')} · GSTIN: ${esc(state.restaurant.gstin || 'Not set')}</span></div>
+      <div class="finance-toolbar">
+        <div class="period-pills">
+          <button class="period-pill ${period==='today'?'active':''}" data-p="today">Today</button>
+          <button class="period-pill ${period==='month'?'active':''}" data-p="month">This Month</button>
+          <button class="period-pill ${period==='all'?'active':''}" data-p="all">All Time</button>
+        </div>
+        <div class="finance-actions">
+          <button class="btn btn-soft" id="dlCsv">⬇ Download CSV</button>
+          <button class="btn btn-soft" id="dlPdf">⬇ Download PDF</button>
+          <button class="btn btn-primary" id="shareCA">📤 Share with CA</button>
+        </div>
+      </div>
+      <div class="table-wrap" id="financeTable"></div>
+    </div>
+
+    <div class="card ca-box">
+      <div class="card-head"><h2>CA / Accountant Details</h2><span class="hint">Used when sending reports</span></div>
+      <div class="form-grid">
+        <div class="field"><label>CA Name / Firm</label><input id="caName" value="${esc(ca.name||'')}" placeholder="e.g. CA Rajesh Sharma" /></div>
+        <div class="field"><label>Email</label><input id="caEmail" type="email" value="${esc(ca.email||'')}" placeholder="accountant@example.com" /></div>
+        <div class="field"><label>Phone</label><input id="caPhone" value="${esc(ca.phone||'')}" placeholder="98000 11111" /></div>
+        <div class="field"><label>GSTIN</label><input id="caGstin" value="${esc(ca.gstin||'')}" placeholder="29AABCT1332L1Z5" /></div>
+        <div class="field" style="grid-column:1/-1"><label>Notes</label><input id="caNotes" value="${esc(ca.notes||'')}" placeholder="e.g. Monthly GSTR-1 &amp; 3B audit" /></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" id="saveCA">Save CA Details</button></div>
+    </div>
+  `;
+
+  drawTable();
+
+  /* Period pill clicks */
+  $$('#pageBody .period-pill').forEach(btn => btn.addEventListener('click', () => {
+    period = btn.dataset.p;
+    $$('#pageBody .period-pill').forEach(b => b.classList.toggle('active', b.dataset.p === period));
+    drawTable();
+  }));
+
+  /* CSV download */
+  $('#dlCsv').addEventListener('click', () => {
+    if (!rows.length) { toast('No data to export'); return; }
+    const lines = [
+      ['Period','Orders','Taxable Amount','CGST','SGST','Total GST','Gross Total'],
+      ...rows.map(r => [r.label, r.count, Math.round(r.taxable), Math.round(r.gst/2), Math.round(r.gst/2), Math.round(r.gst), Math.round(r.total)])
+    ].map(row => row.join(',')).join('\n');
+    downloadBlob(new Blob([lines], {type:'text/csv'}), 'gst-report.csv');
+    toast('CSV downloaded');
+  });
+
+  /* PDF download */
+  function generatePdf() {
+    if (!rows.length) { toast('No data to export'); return null; }
+    if (!window.jspdf) { toast('PDF library not loaded'); return null; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const rest = state.restaurant;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('GST Report', 14, 20);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${rest.name || ''} | GSTIN: ${rest.gstin || ''}`, 14, 28);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 34);
+
+    let y = 44;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    const cols = [14, 60, 90, 115, 140, 165];
+    const headers = ['Period', 'Taxable', 'CGST', 'SGST', 'Total GST', 'Gross'];
+    headers.forEach((h, i) => doc.text(h, cols[i], y));
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    rows.forEach(r => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      const vals = [r.label, `₹${Math.round(r.taxable).toLocaleString('en-IN')}`, `₹${Math.round(r.gst/2).toLocaleString('en-IN')}`, `₹${Math.round(r.gst/2).toLocaleString('en-IN')}`, `₹${Math.round(r.gst).toLocaleString('en-IN')}`, `₹${Math.round(r.total).toLocaleString('en-IN')}`];
+      vals.forEach((v, i) => doc.text(String(v), cols[i], y));
+      y += 6;
+    });
+
+    if (ca.name || ca.email) {
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('CA Details', 14, y); y += 6;
+      doc.setFont('helvetica', 'normal');
+      if (ca.name) { doc.text(`Name: ${ca.name}`, 14, y); y += 5; }
+      if (ca.email) { doc.text(`Email: ${ca.email}`, 14, y); y += 5; }
+      if (ca.phone) { doc.text(`Phone: ${ca.phone}`, 14, y); y += 5; }
+    }
+    return doc;
+  }
+
+  $('#dlPdf').addEventListener('click', () => {
+    const doc = generatePdf();
+    if (!doc) return;
+    downloadBlob(doc.output('blob'), 'gst-report.pdf');
+    toast('PDF downloaded');
+  });
+
+  $('#shareCA').addEventListener('click', () => {
+    const doc = generatePdf();
+    if (!doc) return;
+    downloadBlob(doc.output('blob'), 'gst-report.pdf');
+    toast('PDF ready — attach it to your email to the CA');
+  });
+
+  /* Save CA */
+  $('#saveCA').addEventListener('click', () => {
+    state.ca = {
+      name: $('#caName').value.trim(),
+      email: $('#caEmail').value.trim(),
+      phone: $('#caPhone').value.trim(),
+      gstin: $('#caGstin').value.trim(),
+      notes: $('#caNotes').value.trim(),
+    };
+    save('ca');
+    toast('CA details saved');
+  });
+}
+
+/* ------------------------- Social Media ------------------------- */
+function renderSocials() {
+  $('#topbarActions').innerHTML = '';
+  const body = $('#pageBody');
+  const s = state.socials || {};
+
+  const PLATFORMS = [
+    { key: 'instagram', icon: '📷', label: 'Instagram',  color: '#e1306c',
+      fields: [{ id: 'handle', label: 'Handle', ph: '@yourrestaurant' }, { id: 'url', label: 'Profile URL', ph: 'https://instagram.com/...' }, { id: 'followers', label: 'Followers', ph: '1.2K' }] },
+    { key: 'google',    icon: '🗺️', label: 'Google Maps', color: '#4285f4',
+      fields: [{ id: 'place', label: 'Place Name', ph: 'Your Restaurant, City' }, { id: 'url', label: 'Maps URL', ph: 'https://maps.google.com/...' }, { id: 'reviewUrl', label: 'Review Link', ph: 'https://g.page/r/...' }, { id: 'rating', label: 'Rating', ph: '4.5' }, { id: 'reviews', label: 'Reviews', ph: '200' }] },
+    { key: 'facebook',  icon: '📘', label: 'Facebook',   color: '#1877f2',
+      fields: [{ id: 'page', label: 'Page Name', ph: 'Your Restaurant' }, { id: 'url', label: 'Page URL', ph: 'https://facebook.com/...' }, { id: 'followers', label: 'Followers', ph: '3K' }] },
+    { key: 'youtube',   icon: '▶️', label: 'YouTube',    color: '#ff0000',
+      fields: [{ id: 'channel', label: 'Channel Name', ph: 'Your Restaurant Kitchen' }, { id: 'url', label: 'Channel URL', ph: 'https://youtube.com/@...' }, { id: 'subscribers', label: 'Subscribers', ph: '500' }] },
+    { key: 'whatsapp',  icon: '💬', label: 'WhatsApp',   color: '#25d366',
+      fields: [{ id: 'phone', label: 'Phone Number', ph: '+91 98000 11111' }, { id: 'url', label: 'wa.me Link', ph: 'https://wa.me/91...' }, { id: 'message', label: 'Default Message', ph: 'Hello! I would like to...' }] },
+    { key: 'twitter',   icon: '🐦', label: 'X / Twitter', color: '#000',
+      fields: [{ id: 'handle', label: 'Handle', ph: '@yourrestaurant' }, { id: 'url', label: 'Profile URL', ph: 'https://twitter.com/...' }] },
+  ];
+
+  body.innerHTML = `
+    <div class="social-channel-grid">
+      ${PLATFORMS.map(p => {
+        const d = s[p.key] || {};
+        const active = !!d.active;
+        const showOnSlip = !!d.showOnSlip;
+        return `
+        <div class="social-card" data-platform="${p.key}">
+          <div class="social-card-header" style="border-color:${p.color}">
+            <span class="social-icon">${p.icon}</span>
+            <span class="social-name">${p.label}</span>
+            <span class="social-status-pill ${active ? 'connected' : 'inactive'}">${active ? 'Active' : 'Inactive'}</span>
+          </div>
+          <div class="social-card-body">
+            ${p.fields.map(f => `
+              <div class="field">
+                <label>${f.label}</label>
+                <input data-field="${f.id}" value="${esc(d[f.id] != null ? String(d[f.id]) : '')}" placeholder="${f.ph}" />
+              </div>`).join('')}
+            <div class="social-toggles">
+              <label class="toggle-row">
+                <span class="tr-body"><span class="tr-title">Active</span><span class="tr-sub">Show this platform as connected</span></span>
+                <span class="switch"><input type="checkbox" data-toggle="active" ${active ? 'checked' : ''}><span class="track"></span></span>
+              </label>
+              <label class="toggle-row">
+                <span class="tr-body"><span class="tr-title">Show on Bill Slip</span><span class="tr-sub">Print handle on customer receipts</span></span>
+                <span class="switch"><input type="checkbox" data-toggle="showOnSlip" ${showOnSlip ? 'checked' : ''}><span class="track"></span></span>
+              </label>
+            </div>
+          </div>
+          <div class="social-card-footer">
+            <button class="btn btn-primary btn-sm social-save-btn" data-save="${p.key}">Save Changes</button>
+            ${d.url ? `<a class="btn btn-soft btn-sm" href="${esc(d.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  /* Save button per card */
+  $$('#pageBody .social-save-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.save;
+      const card = body.querySelector(`.social-card[data-platform="${key}"]`);
+      const updated = {};
+      card.querySelectorAll('[data-field]').forEach(inp => {
+        updated[inp.dataset.field] = inp.value.trim();
+      });
+      updated.active = card.querySelector('[data-toggle="active"]').checked;
+      updated.showOnSlip = card.querySelector('[data-toggle="showOnSlip"]').checked;
+
+      if (!state.socials) state.socials = {};
+      state.socials[key] = { ...(state.socials[key] || {}), ...updated };
+      save('socials');
+
+      /* Update status pill */
+      const pill = card.querySelector('.social-status-pill');
+      pill.textContent = updated.active ? 'Active' : 'Inactive';
+      pill.className = `social-status-pill ${updated.active ? 'connected' : 'inactive'}`;
+
+      toast(`${key.charAt(0).toUpperCase() + key.slice(1)} saved`);
+    });
+  });
 }
 
 /* Live seating timers — update any [data-since] element once a second. */
